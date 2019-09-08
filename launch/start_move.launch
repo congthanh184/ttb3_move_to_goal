@@ -1,0 +1,4 @@
+<launch>
+  <node pkg="move_to_goal" type="move_to_goal_node" name="move_goal" />
+</launch>
+
