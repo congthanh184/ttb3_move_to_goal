@@ -7,6 +7,18 @@ import tf2_ros
 import geometry_msgs.msg
 import pdb
 
+def get_msg_from_matrix(object_transform, T):
+    tr = tf.transformations.translation_from_matrix(T)
+    object_transform.transform.translation.x = tr[0]
+    object_transform.transform.translation.y = tr[1]
+    object_transform.transform.translation.z = tr[2]
+    q = tf.transformations.quaternion_from_matrix(T)
+    object_transform.transform.rotation.x = q[0]
+    object_transform.transform.rotation.y = q[1]
+    object_transform.transform.rotation.z = q[2]
+    object_transform.transform.rotation.w = q[3]
+    return object_transform
+
 if __name__ == '__main__':
     rospy.init_node('move_turtlebot_to_goal')
     if len(sys.argv) < 6:
@@ -17,6 +29,8 @@ if __name__ == '__main__':
     else:
         tfBuffer = tf2_ros.Buffer()
         tfListener = tf2_ros.TransformListener(tfBuffer)
+        br = tf2_ros.TransformBroadcaster()
+        rospy.sleep(0.5)
 
         try:
             trans = tfBuffer.lookup_transform("odom", "base_footprint", rospy.Time(0), rospy.Duration(5.0))
@@ -34,7 +48,15 @@ if __name__ == '__main__':
             print(T1)
             print(T2)
             print(T_goal)
-            pdb.set_trace()
+
+            object_transform = geometry_msgs.msg.TransformStamped()
+            object_transform.header.stamp = rospy.Time.now()
+            object_transform.header.frame_id = "odom"
+            object_transform.child_frame_id = "goal"
+            object_transform = get_msg_from_matrix(object_transform, T_goal)
+            while not rospy.is_shutdown():
+                br.sendTransform(object_transform)
+                rospy.sleep(0.05)
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as err:
             print("Error", err)
 
