@@ -62,7 +62,7 @@ class WorldTransform:
 
     def poll_transform_matrix(self, target_frame):
         try:
-            trans = self.tfBuffer.lookup_transform(self.fixed_frame, self.target_frame, rospy.Time(0), rospy.Duration(5.0))
+            trans = self.tfBuffer.lookup_transform(self.fixed_frame, target_frame, rospy.Time(0), rospy.Duration(5.0))
 
             translation = trans.transform.translation
             quaternion = trans.transform.rotation
@@ -102,12 +102,12 @@ if __name__ == '__main__':
         world_init_pose = world_transform_listener.poll_transform_matrix("base_footprint")
         local_goal = transform_matrix_from_params(sys.argv)
 
-        world_goal_pose = numpy.dot(init_pose, local_goal)
+        world_goal_pose = numpy.dot(world_init_pose, local_goal)
 
         r = rospy.Rate(10)
         try:
             while not rospy.is_shutdown():
-                broadcast_goal(T_goal, "odom", "goal")
+                broadcast_goal(world_goal_pose, "odom", "goal")
 
                 world_robot_pose = world_transform_listener.poll_transform_matrix("base_footprint")
                 world_origin_goal = tf.transformations.translation_from_matrix(world_goal_pose)[:-1]
@@ -116,7 +116,7 @@ if __name__ == '__main__':
 
                 world_goal_vector = world_origin_goal - world_origin_robot
                 d_goal = numpy.sqrt((world_goal_vector**2).sum())
-                d_goal = ignore_small_step(d_goal, 0.001, 0)
+                d_goal = ignore_small_step(d_goal, 0.05, 0)
 
                 theta_goal = numpy.arctan2(world_goal_vector[1], world_goal_vector[0])
                 diff_angle = theta_goal - world_robot_orientation
@@ -124,21 +124,32 @@ if __name__ == '__main__':
                 diff_angle = ignore_small_step(diff_angle, 0.1, 0)
 
                 k_d = 0.5
-                k_theta = 0.1
+                k_theta = 0.3
 
-                v = saturated_value(k_d * d_goal, 0, 0.2)
-                w = saturated_value(k_theta * diff_angle, -0.1, 0.1)
+                v = saturated_value(k_d * d_goal, 0, 0.07)
+                if v > 0:
+                    w = saturated_value(k_theta * diff_angle, -0.3, 0.3)
+                else:
+                    w = 0
 
                 twist = Twist()
                 twist.linear.x = v; twist.linear.y = 0.0; twist.linear.z = 0.0
                 twist.angular.x = 0.0; twist.angular.y = 0.0; twist.angular.z = w
+                print v, w, d_goal, diff_angle
                 pub.publish(twist)
                 r.sleep()
         except:
-            print e
+            print "Error"
         finally:
+            print("Finally")
             twist = Twist()
             twist.linear.x = 0.0; twist.linear.y = 0.0; twist.linear.z = 0.0
             twist.angular.x = 0.0; twist.angular.y = 0.0; twist.angular.z = 0.0
             pub.publish(twist)
+            r.sleep()
+            pub.publish(twist)
+            r.sleep()
+            pub.publish(twist)
+            rospy.spin()
+
 
