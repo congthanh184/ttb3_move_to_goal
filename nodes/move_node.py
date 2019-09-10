@@ -86,7 +86,7 @@ def ignore_small_step(value, epsilon, default_value):
     return value
 
 if __name__ == '__main__':
-    rospy.init_node('move_turtlebot_to_goal')
+    rospy.init_node('move_turtlebot_to_goal', disable_signals=True)
     if len(sys.argv) < 6:
         rospy.logerr('Invalid number of parameters\nusage: '
                      './move_node.py '
@@ -138,18 +138,12 @@ if __name__ == '__main__':
                 print v, w, d_goal, diff_angle
                 pub.publish(twist)
                 r.sleep()
-        except:
-            print "Error"
         finally:
             print("Finally")
             twist = Twist()
             twist.linear.x = 0.0; twist.linear.y = 0.0; twist.linear.z = 0.0
             twist.angular.x = 0.0; twist.angular.y = 0.0; twist.angular.z = 0.0
             pub.publish(twist)
-            r.sleep()
-            pub.publish(twist)
-            r.sleep()
-            pub.publish(twist)
-            rospy.spin()
 
+    rospy.signal_shutdown("Done")
 
